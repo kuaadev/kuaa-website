@@ -297,13 +297,13 @@
             const scheduleApiUrl = `/.netlify/functions/get-schedule`;
             const formatTime = (dateStr) => {
                 const date = new Date(dateStr);
-                // Use UTC hours and minutes to prevent time zone shifts
-                let hours = date.getUTCHours();
-                const minutes = date.getUTCMinutes();
-                const ampm = hours >= 12 ? 'PM' : 'AM';
-                hours %= 12;
-                hours = hours || 12; // the hour '0' should be '12'
-                return `${hours}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
+                // Format time specifically for Salt Lake City (Mountain Time)
+                return date.toLocaleTimeString('en-US', {
+                    timeZone: 'America/Denver',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
             };
             const fetchSchedule = async () => {
                 try {
