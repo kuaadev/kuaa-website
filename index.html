@@ -14,7 +14,6 @@
 </head>
 
 <body>
-    <!-- Hidden Audio Player -->
     <audio id="audio-player" preload="auto">
         <source src="https://stream.xmission.com/kuaa" type="audio/mpeg">
     </audio>
@@ -159,7 +158,6 @@
             </div>
         </section>
 
-        <!-- Other sections like About, Contact would go here -->
     </main>
     <footer class="footer py-4">
         <div class="container text-center">
@@ -295,63 +293,17 @@
 
             // --- SCHEDULE ---
             const scheduleApiUrl = `/.netlify/functions/get-schedule`;
-            const formatTime = (dateStr) => {
-                const date = new Date(dateStr);
-                // Format time specifically for Salt Lake City (Mountain Time)
-                return date.toLocaleTimeString('en-US', {
-                    timeZone: 'America/Denver',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                });
+
+            // New function to format time strings like "08:00:00" into "8:00 AM"
+            const formatTime = (timeString) => {
+                if (!timeString) return '';
+                // Create a dummy date to use the browser's formatting capabilities
+                const [hours, minutes] = timeString.split(':');
+                const date = new Date();
+                date.setHours(hours, minutes, 0);
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
             };
-            const fetchSchedule = async () => {
-                try {
-                    const response = await fetch(scheduleApiUrl);
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const scheduleData = await response.json();
 
-                    // --- RE-ADDED FOR DIAGNOSTICS ---
-                    // This will log the full data object to your browser's developer console.
-                    console.log('--- RAW DATA RECEIVED BY WEBSITE ---');
-                    console.log(scheduleData.items); // Logging the .items array directly
-                    // --- END DIAGNOSTIC CODE ---
-
-                    const shows = scheduleData.items;
-
-                    const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-
-                    const uniqueShowEntries = new Set();
-
-                    shows.forEach(show => {
-                        const showDate = new Date(show.start);
-                        const dayOfWeek = showDate.getDay();
-                        const showKey = `${dayOfWeek}-${show.title}`;
-
-                        if (!uniqueShowEntries.has(showKey)) {
-                            showsByDay[dayOfWeek].push(show);
-                            uniqueShowEntries.add(showKey);
-                        }
-                    });
-
-                    for (const day in showsByDay) {
-                        showsByDay[day].sort((a, b) => {
-                            const timeA = new Date(a.start);
-                            const timeB = new Date(b.start);
-
-                            if (timeA.getHours() !== timeB.getHours()) {
-                                return timeA.getHours() - timeB.getHours();
-                            }
-                            return timeA.getMinutes() - timeB.getMinutes();
-                        });
-                    }
-
-                    renderSchedule(showsByDay);
-
-                } catch (error) {
-                    console.error("Error fetching schedule:", error);
-                }
-            };
             const renderSchedule = (showsByDay) => {
                 const dayMap = { 0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday' };
                 for (const dayIndex in dayMap) {
@@ -361,25 +313,77 @@
 
                     if (!container) continue;
 
-                    if (dayShows.length === 0) {
+                    if (!dayShows || dayShows.length === 0) {
                         container.innerHTML = '<p class="text-center p-3">No shows scheduled for today.</p>';
                     } else {
                         let tableHTML = `<table class="table table-striped table-hover">
                             <thead class="table-dark"><tr><th>Time</th><th>Show</th><th>DJ/Host</th></tr></thead><tbody>`;
                         dayShows.forEach(show => {
-                            const djName = (show.personas && show.personas.length > 0)
-                                ? show.personas.map(p => p.name).join(' & ')
-                                : 'KUAA';
+                            // Calculate end time
+                            const [startHours, startMinutes] = show.start_time.split(':');
+                            const startDate = new Date();
+                            startDate.setHours(startHours, startMinutes, 0, 0);
+                            const endDate = new Date(startDate.getTime() + show.duration * 1000);
+                            const endTimeString = endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
                             tableHTML += `<tr>
-                                <td>${formatTime(show.start)} - ${formatTime(show.end)}</td>
+                                <td>${formatTime(show.start_time)} - ${endTimeString}</td>
                                 <td>${show.title || 'Untitled Show'}</td>
-                                <td>${djName}</td>
+                                <td>${show.persona_name || 'KUAA'}</td>
                             </tr>`;
                         });
                         tableHTML += `</tbody></table>`;
                         container.innerHTML = tableHTML;
                     }
+                }
+            };
+
+            const fetchSchedule = async () => {
+                try {
+                    const response = await fetch(scheduleApiUrl);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const scheduleData = await response.json();
+                    const personas = scheduleData.items;
+
+                    const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+                    const processedShowIds = new Set(); // Use show ID for uniqueness
+
+                    personas.forEach(persona => {
+                        if (persona.shows && Array.isArray(persona.shows)) {
+                            persona.shows.forEach(show => {
+                                if (processedShowIds.has(show.id)) {
+                                    return; // Skip if we've already processed this show
+                                }
+
+                                const scheduleDays = show.days; // e.g., [0, 1, 2, 3, 4]
+                                const startTime = show.start_time; // e.g., "08:00:00"
+
+                                if (scheduleDays && Array.isArray(scheduleDays) && startTime) {
+                                    scheduleDays.forEach(dayIndex => {
+                                        if (dayIndex >= 0 && dayIndex <= 6) {
+                                            // Create a copy of the show and add the persona name to it
+                                            const showInstance = { ...show };
+                                            showInstance.persona_name = persona.name;
+                                            showsByDay[dayIndex].push(showInstance);
+                                        }
+                                    });
+                                    processedShowIds.add(show.id);
+                                }
+                            });
+                        }
+                    });
+
+                    // Sort each day's shows by their start time
+                    for (const day in showsByDay) {
+                        showsByDay[day].sort((a, b) => {
+                            return a.start_time.localeCompare(b.start_time);
+                        });
+                    }
+
+                    renderSchedule(showsByDay);
+
+                } catch (error) {
+                    console.error("Error fetching schedule:", error);
                 }
             };
 
