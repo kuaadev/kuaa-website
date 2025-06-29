@@ -1,14 +1,3 @@
-const data = await response.json();
-
-// --- ADD THESE TWO LINES ---
-console.log('--- RAW DATA FROM SPINITRON API ---');
-console.log(JSON.stringify(data, null, 2));
-
-return {
-    statusCode: 200,
-    body: JSON.stringify(data)
-};
-
 const fetch = require('node-fetch');
 
 exports.handler = async function (event, context) {
@@ -21,8 +10,8 @@ exports.handler = async function (event, context) {
         };
     }
 
-    // This now correctly includes the `with=personas` parameter to fetch DJ names.
-    const spinitronApiUrl = `https://spinitron.com/api/shows?access-token=${spinitronApiKey}&station=kuaa&count=500&with=personas`;
+    // Set count to 250 as a balance between getting enough data and preventing timeouts.
+    const spinitronApiUrl = `https://spinitron.com/api/shows?access-token=${spinitronApiKey}&station=kuaa&count=250&with=personas`;
 
     try {
         const response = await fetch(spinitronApiUrl);
