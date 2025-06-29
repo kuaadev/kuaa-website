@@ -317,7 +317,8 @@
                     const uniqueShowEntries = new Set();
 
                     shows.forEach(show => {
-                        const showDate = new new Date(show.start);
+                        // --- TYPO IS FIXED HERE ---
+                        const showDate = new Date(show.start);
                         const dayOfWeek = showDate.getDay();
                         const showKey = `${dayOfWeek}-${show.title}`;
 
@@ -342,7 +343,6 @@
                     renderSchedule(showsByDay);
 
                 } catch (error) {
-                    // This is where the 502 error was being caught and displayed.
                     console.error("Error fetching schedule:", error);
                 }
             };
