@@ -315,7 +315,8 @@
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
                     shows.forEach(show => {
                         const showDate = new Date(show.start);
-                        const dayOfWeek = showDate.getUTCDay();
+                        // CORRECTED: Use getDay() to respect the browser's local time zone
+                        const dayOfWeek = showDate.getDay();
                         showsByDay[dayOfWeek].push(show);
                     });
 
