@@ -310,6 +310,13 @@
                     const response = await fetch(scheduleApiUrl);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const scheduleData = await response.json();
+
+                    // --- RE-ADDED FOR DIAGNOSTICS ---
+                    // This will log the full data object to your browser's developer console.
+                    console.log('--- RAW DATA RECEIVED BY WEBSITE ---');
+                    console.log(scheduleData.items); // Logging the .items array directly
+                    // --- END DIAGNOSTIC CODE ---
+
                     const shows = scheduleData.items;
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
@@ -317,7 +324,6 @@
                     const uniqueShowEntries = new Set();
 
                     shows.forEach(show => {
-                        // --- TYPO IS FIXED HERE ---
                         const showDate = new Date(show.start);
                         const dayOfWeek = showDate.getDay();
                         const showKey = `${dayOfWeek}-${show.title}`;
