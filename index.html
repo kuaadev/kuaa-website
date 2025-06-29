@@ -310,31 +310,31 @@
                     const response = await fetch(scheduleApiUrl);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const scheduleData = await response.json();
+
+                    // --- ADDED FOR DEBUGGING ---
+                    // This will log the full data object to your browser's developer console.
+                    console.log('--- RAW DATA RECEIVED BY WEBSITE ---');
+                    console.log(scheduleData);
+                    // --- END DEBUGGING CODE ---
+
                     const shows = scheduleData.items;
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
 
-                    // This Set will keep track of shows we've already added to a specific day
-                    // to prevent duplicates from appearing in the grid.
                     const uniqueShowEntries = new Set();
 
                     shows.forEach(show => {
                         const showDate = new Date(show.start);
                         const dayOfWeek = showDate.getDay();
 
-                        // Create a unique key for a show based on its title AND the day of the week.
-                        // This allows "The Spin Cycle" to appear once on Monday, once on Tuesday, etc.
                         const showKey = `${dayOfWeek}-${show.title}`;
 
-                        // If we have NOT already added this show to this specific day, add it.
                         if (!uniqueShowEntries.has(showKey)) {
                             showsByDay[dayOfWeek].push(show);
-                            // Add the key to the set so we don't add it again.
                             uniqueShowEntries.add(showKey);
                         }
                     });
 
-                    // Now that the grid is built, sort each day by the show's start time.
                     for (const day in showsByDay) {
                         showsByDay[day].sort((a, b) => {
                             const timeA = new Date(a.start);
