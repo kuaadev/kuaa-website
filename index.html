@@ -310,39 +310,31 @@
                     const response = await fetch(scheduleApiUrl);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const scheduleData = await response.json();
-
-                    // The 'items' property contains our list of shows
                     const shows = scheduleData.items;
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
 
-                    // This is our new logic. We iterate through each unique show.
-                    shows.forEach(show => {
-                        // --- IMPORTANT ---
-                        // We need to find the property that holds the weekly schedule.
-                        // We are guessing it's called 'days' and is an array of numbers [0, 1, 2, 3, 4, 5, 6].
-                        // If this doesn't work, we may need to find the correct property name.
-                        // Common alternatives could be 'weekdays', or inside a 'schedule' object.
-                        const scheduleDays = show.days;
+                    // This Set will keep track of shows we've already added to a specific day
+                    // to prevent duplicates from appearing in the grid.
+                    const uniqueShowEntries = new Set();
 
-                        // If the show has a schedule array, use it to place the show.
-                        if (scheduleDays && Array.isArray(scheduleDays)) {
-                            scheduleDays.forEach(dayIndex => {
-                                // Ensure the dayIndex is a valid number (0-6)
-                                if (dayIndex >= 0 && dayIndex <= 6) {
-                                    showsByDay[dayIndex].push(show);
-                                }
-                            });
-                        } else {
-                            // As a fallback, if no schedule array is found, place it based
-                            // on its single 'start' time. This will handle non-recurring shows.
-                            const showDate = new Date(show.start);
-                            const dayOfWeek = showDate.getDay();
+                    shows.forEach(show => {
+                        const showDate = new Date(show.start);
+                        const dayOfWeek = showDate.getDay();
+
+                        // Create a unique key for a show based on its title AND the day of the week.
+                        // This allows "The Spin Cycle" to appear once on Monday, once on Tuesday, etc.
+                        const showKey = `${dayOfWeek}-${show.title}`;
+
+                        // If we have NOT already added this show to this specific day, add it.
+                        if (!uniqueShowEntries.has(showKey)) {
                             showsByDay[dayOfWeek].push(show);
+                            // Add the key to the set so we don't add it again.
+                            uniqueShowEntries.add(showKey);
                         }
                     });
 
-                    // Now, sort each day's shows by their start time to ensure correct order.
+                    // Now that the grid is built, sort each day by the show's start time.
                     for (const day in showsByDay) {
                         showsByDay[day].sort((a, b) => {
                             const timeA = new Date(a.start);

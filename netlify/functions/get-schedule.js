@@ -11,7 +11,7 @@ exports.handler = async function (event, context) {
     }
 
     // This now correctly includes the `with=personas` parameter to fetch DJ names.
-    const spinitronApiUrl = `https://spinitron.com/api/shows?access-token=${spinitronApiKey}&station=kuaa&count=300&with=personas`;
+    const spinitronApiUrl = `https://spinitron.com/api/shows?access-token=${spinitronApiKey}&station=kuaa&count=500&with=personas`;
 
     try {
         const response = await fetch(spinitronApiUrl);
