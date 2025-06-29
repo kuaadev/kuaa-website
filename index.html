@@ -313,15 +313,36 @@
                     const shows = scheduleData.items;
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+
+                    // Use a Set to keep track of unique shows to avoid duplicates in the schedule
+                    const uniqueShowIds = new Set();
+
                     shows.forEach(show => {
                         const showDate = new Date(show.start);
-                        // CORRECTED: Use getDay() to respect the browser's local time zone
                         const dayOfWeek = showDate.getDay();
-                        showsByDay[dayOfWeek].push(show);
+
+                        // Create a unique key for a show on a specific day of the week
+                        const showKey = `${dayOfWeek}-${show.title}`;
+
+                        if (!uniqueShowIds.has(showKey)) {
+                            showsByDay[dayOfWeek].push(show);
+                            uniqueShowIds.add(showKey);
+                        }
                     });
 
                     for (const day in showsByDay) {
-                        showsByDay[day].sort((a, b) => new Date(a.start) - new Date(b.start));
+                        // CORRECTED: This now sorts by time of day, ignoring the date.
+                        showsByDay[day].sort((a, b) => {
+                            const timeA = new Date(a.start);
+                            const timeB = new Date(b.start);
+
+                            // Compare hours first (in the browser's local time zone)
+                            if (timeA.getHours() !== timeB.getHours()) {
+                                return timeA.getHours() - timeB.getHours();
+                            }
+                            // If hours are the same, compare minutes
+                            return timeA.getMinutes() - timeB.getMinutes();
+                        });
                     }
 
                     renderSchedule(showsByDay);
