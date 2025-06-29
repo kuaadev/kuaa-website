@@ -310,23 +310,39 @@
                     const response = await fetch(scheduleApiUrl);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const scheduleData = await response.json();
+
+                    // The 'items' property contains our list of shows
                     const shows = scheduleData.items;
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-                    // Use a Set to track titles we've already added to the schedule grid
-                    const processedTitles = new Set();
 
+                    // This is our new logic. We iterate through each unique show.
                     shows.forEach(show => {
-                        if (processedTitles.has(show.title)) {
-                            return;
+                        // --- IMPORTANT ---
+                        // We need to find the property that holds the weekly schedule.
+                        // We are guessing it's called 'days' and is an array of numbers [0, 1, 2, 3, 4, 5, 6].
+                        // If this doesn't work, we may need to find the correct property name.
+                        // Common alternatives could be 'weekdays', or inside a 'schedule' object.
+                        const scheduleDays = show.days;
+
+                        // If the show has a schedule array, use it to place the show.
+                        if (scheduleDays && Array.isArray(scheduleDays)) {
+                            scheduleDays.forEach(dayIndex => {
+                                // Ensure the dayIndex is a valid number (0-6)
+                                if (dayIndex >= 0 && dayIndex <= 6) {
+                                    showsByDay[dayIndex].push(show);
+                                }
+                            });
+                        } else {
+                            // As a fallback, if no schedule array is found, place it based
+                            // on its single 'start' time. This will handle non-recurring shows.
+                            const showDate = new Date(show.start);
+                            const dayOfWeek = showDate.getDay();
+                            showsByDay[dayOfWeek].push(show);
                         }
-
-                        const showDate = new Date(show.start);
-
-                        const dayOfWeek = showDate.getDay();
-                        showsByDay[dayOfWeek].push(show);
                     });
 
+                    // Now, sort each day's shows by their start time to ensure correct order.
                     for (const day in showsByDay) {
                         showsByDay[day].sort((a, b) => {
                             const timeA = new Date(a.start);
