@@ -344,11 +344,19 @@
                     const response = await fetch(scheduleApiUrl);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const scheduleData = await response.json();
-                    const finalSchedule = scheduleData.items; // This is now the "cleaned" array
+                    const finalSchedule = scheduleData.items;
+
+                    // --- FINAL DIAGNOSTIC ---
+                    // This will show us the exact structure of the data from the backend.
+                    console.log("--- CLEANED SCHEDULE DATA FROM BACKEND ---");
+                    console.log(finalSchedule);
+                    // --- END DIAGNOSTIC ---
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
 
                     finalSchedule.forEach(show => {
+                        // This 'if' condition is likely where the logic is failing.
+                        // We need to see what the property names actually are.
                         const scheduleDays = show.days;
                         const startTime = show.start_time;
 
