@@ -313,20 +313,18 @@
                     const shows = scheduleData.items;
 
                     const showsByDay = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-
-                    const uniqueShowIds = new Set();
+                    // Use a Set to track titles we've already added to the schedule grid
+                    const processedTitles = new Set();
 
                     shows.forEach(show => {
-                        const showDate = new Date(show.start);
-                        const dayOfWeek = showDate.getDay();
-
-                        // CORRECTED: The unique key now includes the day of the week.
-                        const showKey = `${dayOfWeek}-${show.title}`;
-
-                        if (!uniqueShowIds.has(showKey)) {
-                            showsByDay[dayOfWeek].push(show);
-                            uniqueShowIds.add(showKey);
+                        if (processedTitles.has(show.title)) {
+                            return;
                         }
+
+                        const showDate = new Date(show.start);
+
+                        const dayOfWeek = showDate.getDay();
+                        showsByDay[dayOfWeek].push(show);
                     });
 
                     for (const day in showsByDay) {
