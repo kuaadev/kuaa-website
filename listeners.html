@@ -10,63 +10,145 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <style>
-        html,
+        :root {
+            --bg-dark: #111;
+            --bg-light: #f0f0f0;
+            --text-dark: #eee;
+            --text-light: #222;
+            --accent-color: #ff6237;
+        }
+
         body {
-            height: 100%;
             margin: 0;
-            background: #111;
             font-family: sans-serif;
-            color: white;
+            background: var(--bg-dark);
+            color: var(--text-dark);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        body.light-theme {
+            background: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        #sidebar {
+            width: 300px;
+            background: var(--bg-dark);
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        body.light-theme #sidebar {
+            background: var(--bg-light);
+            color: var(--text-light);
+            border-color: #ccc;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+            color: var(--accent-color);
         }
 
         #map {
-            height: 100vh;
-            width: 100vw;
-        }
-
-        .leaflet-popup-content-wrapper {
-            background: #222;
-            color: white;
-            border-radius: 8px;
-        }
-
-        .leaflet-popup-tip {
-            background: #222;
+            flex-grow: 1;
         }
 
         .nav-link {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #ff6237;
+            display: inline-block;
+            margin-bottom: 20px;
+            background: var(--accent-color);
             color: white;
             padding: 10px 15px;
             border-radius: 5px;
             text-decoration: none;
             font-weight: bold;
-            z-index: 9999;
+        }
+
+        #themeToggle {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background: var(--accent-color);
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Leaflet popup tweaks for light/dark */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-dark);
+            color: var(--text-dark);
+            border-radius: 8px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        body.light-theme .leaflet-popup-content-wrapper {
+            background: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        .leaflet-popup-tip {
+            background: var(--bg-dark);
+            transition: background 0.3s;
+        }
+
+        body.light-theme .leaflet-popup-tip {
+            background: var(--bg-light);
         }
     </style>
 </head>
 
 <body>
-    <a href="/" class="nav-link">⟵ Back to Home</a>
+    <div id="sidebar">
+        <a href="/" class="nav-link">⟵ Back to Home</a>
+
+        <h2>Listener Stats</h2>
+
+        <p><strong>Current Streamers:</strong> <span id="currentCount">Loading...</span></p>
+        <p><strong>Unique Cities:</strong> <span id="uniqueCities">Loading...</span></p>
+        <p><strong>Unique Countries:</strong> <span id="uniqueCountries">Loading...</span></p>
+
+        <button id="themeToggle">Toggle Light/Dark Theme</button>
+    </div>
+
     <div id="map"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-
     <script>
-        const slcCoords = [40.7608, -111.8910]; // KUAA HQ coords
+        // Initialize theme
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const body = document.body;
+
+        themeToggleBtn.addEventListener('click', () => {
+            body.classList.toggle('light-theme');
+        });
+
+        // Initialize map
+        const slcCoords = [40.7608, -111.8910];
         const map = L.map('map').setView(slcCoords, 3);
 
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
         }).addTo(map);
 
-        // Fetch current visitor location and highlight
+        // Elements for stats
+        const currentCountEl = document.getElementById('currentCount');
+        const uniqueCitiesEl = document.getElementById('uniqueCities');
+        const uniqueCountriesEl = document.getElementById('uniqueCountries');
+
+        // Store listeners for stats
+        let listeners = [];
+
+        // Fetch current visitor
         fetch('/.netlify/functions/getLocation')
             .then(res => res.json())
             .then(visitor => {
@@ -77,14 +159,23 @@
                     .openPopup();
 
                 map.flyTo(coords, 4, { duration: 2 });
-            })
-            .catch(err => console.error('Failed to fetch visitor location:', err));
 
-        // Fetch all logged visitors and show as circle markers
+                // Add to listeners list so stats include current visitor too
+                listeners.push(visitor);
+                updateStats();
+            })
+            .catch(() => {
+                currentCountEl.textContent = 'Unknown';
+            });
+
+        // Fetch all logged listeners
         fetch('/.netlify/functions/getLogFromGitHub')
             .then(res => res.json())
-            .then(listeners => {
-                listeners.forEach(visitor => {
+            .then(data => {
+                data.forEach(visitor => {
+                    // Avoid duplicate current visitor markers
+                    if (!listeners.some(l => l.ip === visitor.ip)) listeners.push(visitor);
+
                     L.circleMarker([visitor.lat, visitor.lon], {
                         radius: 5,
                         color: '#ff6237',
@@ -93,8 +184,22 @@
                         .addTo(map)
                         .bindPopup(`Listener from ${visitor.city}, ${visitor.country}`);
                 });
+                updateStats();
             })
-            .catch(err => console.error('Could not load visitor log:', err));
+            .catch(() => {
+                uniqueCitiesEl.textContent = 'Unavailable';
+                uniqueCountriesEl.textContent = 'Unavailable';
+            });
+
+        function updateStats() {
+            currentCountEl.textContent = listeners.length;
+
+            const cities = new Set(listeners.map(l => l.city).filter(Boolean));
+            const countries = new Set(listeners.map(l => l.country).filter(Boolean));
+
+            uniqueCitiesEl.textContent = cities.size;
+            uniqueCountriesEl.textContent = countries.size;
+        }
     </script>
 </body>
 
