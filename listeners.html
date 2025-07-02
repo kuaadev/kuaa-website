@@ -3,93 +3,99 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>KUAA Listeners Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-o9N1jXgtFvP9XU5d8kzywfR2IhRj4pQ+U6s3M07uN6A=" crossorigin="" />
+
     <style>
+        html,
         body {
+            height: 100%;
             margin: 0;
-            background-color: #111;
-            color: white;
+            background: #111;
             font-family: sans-serif;
+            color: white;
         }
 
-        #globeViz {
-            width: 100vw;
+        #map {
             height: 100vh;
+            width: 100vw;
         }
 
-        .location-label {
+        .leaflet-popup-content-wrapper {
+            background: #222;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-tip {
+            background: #222;
+        }
+
+        .nav-link {
             position: absolute;
             top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
+            right: 20px;
+            background: #ff6237;
+            color: white;
+            padding: 10px 15px;
             border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            z-index: 9999;
         }
     </style>
 </head>
 
 <body>
-    <div id="globeViz"></div>
+    <a href="/" class="nav-link">⟵ Back to Home</a>
+    <div id="map"></div>
 
-    <div id="locationDisplay" class="location-label">Fetching your location...</div>
-
-    <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three-globe@2.31.0/dist/three-globe.min.js"></script>
-
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-oZSr38L+oJXb8sRK8tE6ZrDYfDgIYFMeh3IC1x4wYxk=" crossorigin=""></script>
 
     <script>
-        // --- Configuration ---
-        const SLC_COORDS = { lat: 40.7608, lng: -111.8910 };
+        const slcCoords = [40.7608, -111.8910]; // KUAA HQ coords
+        const map = L.map('map').setView(slcCoords, 3);
 
-        // --- Globe Initialization ---
-        const globe = Globe()
-            (document.getElementById('globeViz'))
-            .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-            .backgroundColor('rgba(0,0,0,0)')
-            .arcColor(() => '#ff6237') // KUAA-like red/orange color
-            .arcDashLength(0.4)
-            .arcDashGap(1)
-            .arcDashAnimateTime(1500)
-            .arcStroke(0.5);
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
 
-        // Set camera position
-        globe.pointOfView({ lat: SLC_COORDS.lat, lng: SLC_COORDS.lng, altitude: 2 });
+        // Fetch current visitor location and highlight
+        fetch('/.netlify/functions/getLocation')
+            .then(res => res.json())
+            .then(visitor => {
+                const coords = [visitor.lat, visitor.lon];
+                L.marker(coords)
+                    .addTo(map)
+                    .bindPopup(`You are a listener from ${visitor.city}, ${visitor.country}!`)
+                    .openPopup();
 
+                map.flyTo(coords, 4, { duration: 2 });
+            })
+            .catch(err => console.error('Failed to fetch visitor location:', err));
 
-        // --- Data Fetching and Visualization ---
-        async function fetchAndDrawVisitor() {
-            try {
-                // 1. Fetch data from our serverless function
-                const response = await fetch('/.netlify/functions/getLocation');
-                if (!response.ok) throw new Error('Could not fetch location');
-
-                const visitor = await response.json();
-
-                // 2. Display the fetched location text
-                const display = document.getElementById('locationDisplay');
-                display.textContent = `A listener is tuning in from ${visitor.city}, ${visitor.country}!`;
-
-                // 3. Draw the arc on the globe
-                const arcData = [{
-                    startLat: SLC_COORDS.lat,
-                    startLng: SLC_COORDS.lng,
-                    endLat: visitor.lat,
-                    endLng: visitor.lon,
-                }];
-
-                globe.arcsData(arcData);
-
-            } catch (error) {
-                console.error('Error fetching visitor data:', error);
-                const display = document.getElementById('locationDisplay');
-                display.textContent = 'Could not determine your location.';
-            }
-        }
-
-        // Run the function when the page loads
-        fetchAndDrawVisitor();
-
+        // Fetch all logged visitors and show as circle markers
+        fetch('/.netlify/functions/getLogFromGitHub')
+            .then(res => res.json())
+            .then(listeners => {
+                listeners.forEach(visitor => {
+                    L.circleMarker([visitor.lat, visitor.lon], {
+                        radius: 5,
+                        color: '#ff6237',
+                        fillOpacity: 0.7,
+                    })
+                        .addTo(map)
+                        .bindPopup(`Listener from ${visitor.city}, ${visitor.country}`);
+                });
+            })
+            .catch(err => console.error('Could not load visitor log:', err));
     </script>
 </body>
 
