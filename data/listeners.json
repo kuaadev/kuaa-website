@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "city": "Salt Lake City",
+    "country": "United States",
+    "lat": 40.7334,
+    "lon": -111.8628,
+    "timestamp": "2025-07-02T22:52:28.861Z",
+    "ip": "136.38.244.169"
+  }
+]
