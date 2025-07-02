@@ -30,5 +30,13 @@
     "lon": -74.4996,
     "timestamp": "2025-07-02T23:24:07.746Z",
     "ip": "2600:4041:453b:cb00:acdf:c54b:c67:70cc"
+  },
+  {
+    "city": "Salt Lake City",
+    "country": "United States",
+    "lat": 40.7334,
+    "lon": -111.8628,
+    "timestamp": "2025-07-02T23:24:32.731Z",
+    "ip": "136.38.244.169"
   }
 ]
