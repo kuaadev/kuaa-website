@@ -86,7 +86,7 @@
             background: var(--bg-dark);
             color: var(--text-dark);
             border-radius: 8px;
-            transition: background 0.3s, color 0.3s;
+            transition: background 0.2s, color 0.3s;
         }
 
         body.light-theme .leaflet-popup-content-wrapper {
@@ -136,9 +136,10 @@
         const slcCoords = [40.7608, -111.8910];
         const map = L.map('map').setView(slcCoords, 3);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
         }).addTo(map);
+
 
         // Elements for stats
         const currentCountEl = document.getElementById('currentCount');
