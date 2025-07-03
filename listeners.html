@@ -6,8 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>KUAA Listeners Map</title>
 
-    <!-- Leaflet CSS -->
+    <!-- Leaflet CSS + Leaflet.curve for arcs -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.curve/leaflet.curve.min.js"></script>
 
     <style>
         :root {
@@ -16,6 +18,7 @@
             --text-dark: #eee;
             --text-light: #222;
             --accent-color: #ff6237;
+            --hot-pink: #ff3366;
         }
 
         body {
@@ -35,7 +38,7 @@
         }
 
         #sidebar {
-            width: 300px;
+            width: 350px;
             background: var(--bg-dark);
             padding: 20px;
             box-sizing: border-box;
@@ -81,12 +84,51 @@
             cursor: pointer;
         }
 
-        /* Leaflet popup tweaks for light/dark */
+        table {
+            width: 100%;
+            font-size: 14px;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            padding: 6px;
+            text-align: left;
+        }
+
+        th {
+            color: #888;
+        }
+
+        td:last-child {
+            color: var(--hot-pink);
+        }
+
+        #listenerTable {
+            color: #ccc;
+        }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .stat-box {
+            background: var(--hot-pink);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
         .leaflet-popup-content-wrapper {
             background: var(--bg-dark);
             color: var(--text-dark);
             border-radius: 8px;
-            transition: background 0.2s, color 0.3s;
+            transition: background 0.3s, color 0.3s;
         }
 
         body.light-theme .leaflet-popup-content-wrapper {
@@ -96,7 +138,6 @@
 
         .leaflet-popup-tip {
             background: var(--bg-dark);
-            transition: background 0.3s;
         }
 
         body.light-theme .leaflet-popup-tip {
@@ -108,48 +149,75 @@
 <body>
     <div id="sidebar">
         <a href="/" class="nav-link">⟵ Back to Home</a>
-
         <h2>Listener Stats</h2>
 
-        <p><strong>Current Streamers:</strong> <span id="currentCount">Loading...</span></p>
-        <p><strong>Unique Cities:</strong> <span id="uniqueCities">Loading...</span></p>
-        <p><strong>Unique Countries:</strong> <span id="uniqueCountries">Loading...</span></p>
+        <div class="stats">
+            <div class="stat-box">📡 <span id="listenerCount">0</span></div>
+            <div class="stat-box">❤️ <span id="favoritesCount">94</span></div>
+        </div>
+
+        <div style="max-height: 350px; overflow-y: auto; border-top: 1px solid #333;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>📶 City</th>
+                        <th>Region</th>
+                        <th>Country</th>
+                    </tr>
+                </thead>
+                <tbody id="listenerTable"></tbody>
+            </table>
+        </div>
 
         <button id="themeToggle">Toggle Light/Dark Theme</button>
     </div>
 
     <div id="map"></div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
-        // Initialize theme
-        const themeToggleBtn = document.getElementById('themeToggle');
-        const body = document.body;
-
-        themeToggleBtn.addEventListener('click', () => {
-            body.classList.toggle('light-theme');
-        });
-
-        // Initialize the map
         const slcCoords = [40.7608, -111.8910];
         const map = L.map('map').setView(slcCoords, 3);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+            attribution: '&copy; CartoDB',
         }).addTo(map);
 
+        // Theme Toggle
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+        });
 
-        // Elements for stats
-        const currentCountEl = document.getElementById('currentCount');
-        const uniqueCitiesEl = document.getElementById('uniqueCities');
-        const uniqueCountriesEl = document.getElementById('uniqueCountries');
+        // DOM for stats + table
+        const listenerCountEl = document.getElementById('listenerCount');
+        const tableBody = document.getElementById('listenerTable');
 
-        // Store listeners for stats
-        let listeners = [];
+        // Utility: draw curved arc from SLC
+        function drawAnimatedArc(start, end) {
+            const latlngs = [
+                'M', start,
+                'Q', [
+                    (start[0] + end[0]) / 2 + 10,
+                    (start[1] + end[1]) / 2
+                ],
+                end
+            ];
 
-        // Fetch current visitor
+            const arc = L.curve(latlngs, {
+                color: '#ff6237',
+                weight: 2,
+                opacity: 0,
+                dashArray: '5 10',
+            }).addTo(map);
+
+            let opacity = 0;
+            const interval = setInterval(() => {
+                opacity += 0.05;
+                arc.setStyle({ opacity });
+                if (opacity >= 1) clearInterval(interval);
+            }, 50);
+        }
+
+        // Fetch and highlight current visitor
         fetch('/.netlify/functions/getLocation')
             .then(res => res.json())
             .then(visitor => {
@@ -160,47 +228,37 @@
                     .openPopup();
 
                 map.flyTo(coords, 4, { duration: 2 });
-
-                // Add to listeners list so stats include current visitor too
-                listeners.push(visitor);
-                updateStats();
-            })
-            .catch(() => {
-                currentCountEl.textContent = 'Unknown';
+                drawAnimatedArc(slcCoords, coords);
             });
 
-        // Fetch all logged listeners
+        // Fetch all logged visitors
         fetch('/.netlify/functions/getLogFromGitHub')
             .then(res => res.json())
             .then(data => {
-                data.forEach(visitor => {
-                    // Avoid duplicate current visitor markers
-                    if (!listeners.some(l => l.ip === visitor.ip)) listeners.push(visitor);
+                listenerCountEl.textContent = data.length;
 
-                    L.circleMarker([visitor.lat, visitor.lon], {
+                data.forEach(visitor => {
+                    const coords = [visitor.lat, visitor.lon];
+                    drawAnimatedArc(slcCoords, coords);
+
+                    L.circleMarker(coords, {
                         radius: 5,
                         color: '#ff6237',
                         fillOpacity: 0.7,
                     })
                         .addTo(map)
                         .bindPopup(`Listener from ${visitor.city}, ${visitor.country}`);
+
+                    // Add to table
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+            <td>📡 ${visitor.city || 'Unknown'}</td>
+            <td>${visitor.region || ''}</td>
+            <td>${visitor.country || ''}</td>
+          `;
+                    tableBody.appendChild(row);
                 });
-                updateStats();
-            })
-            .catch(() => {
-                uniqueCitiesEl.textContent = 'Unavailable';
-                uniqueCountriesEl.textContent = 'Unavailable';
             });
-
-        function updateStats() {
-            currentCountEl.textContent = listeners.length;
-
-            const cities = new Set(listeners.map(l => l.city).filter(Boolean));
-            const countries = new Set(listeners.map(l => l.country).filter(Boolean));
-
-            uniqueCitiesEl.textContent = cities.size;
-            uniqueCountriesEl.textContent = countries.size;
-        }
     </script>
 </body>
 
